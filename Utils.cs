@@ -1,6 +1,6 @@
-﻿
-using ScottPlot;
-using ScottPlot.WinForms;
+﻿using TorchSharp;
+using TorchSharp.Modules;
+using static TorchSharp.torch;
 
 public struct LinearFunction
 {
@@ -36,6 +36,17 @@ public struct Graph
 {
     public List<Point> points;
     public Graph() => points = new List<Point>();
+    public Tensor tensorX => ToVaildTensor(points.Select(a => a.x).ToArray());
+    public Tensor tensorY => ToVaildTensor(points.Select(a => a.y).ToArray());
+    public static Tensor ToVaildTensor(params double[] array)
+    {
+        var result = new double[array.Length, 1];
+        for (int i = 0; i < array.Length; i++)
+        {
+            result[i, 0] = array[i];
+        }
+        return tensor(result, ScalarType.Float32, NonlinearFunctionTorch.device);
+    }
 }
 public struct Point
 {
@@ -55,6 +66,7 @@ public struct Point
     };
     public override string ToString() => $"{x},{y}";
 }
+[Obsolete("Invaild!", true)]
 public struct NonlinearFunction
 {
     public int count;
@@ -100,5 +112,30 @@ public struct NonlinearFunction
                 }
             }
         }
+    }
+}
+
+public struct NonlinearFunctionTorch
+{
+    public static Device device = new Device(DeviceType.CPU);
+    Sequential model;
+    Adam optimizer;
+    public NonlinearFunctionTorch(int count)
+    {
+        model = nn.Sequential(
+            nn.Linear(1, count),
+            nn.ReLU(),
+            nn.Linear(count, 1)
+            //nn.Flatten()
+            );
+        optimizer = optim.Adam(model.parameters(), 0.01f);
+    }
+    public double Calculate(double x) => (double)model.forward(Graph.ToVaildTensor(x));
+    public void Train(Graph graph)
+    {
+        var loss = nn.functional.mse_loss(model.forward(graph.tensorX), graph.tensorY);
+        optimizer.zero_grad();
+        loss.backward();
+        optimizer.step();
     }
 }
