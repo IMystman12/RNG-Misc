@@ -3,13 +3,13 @@
 Console.WriteLine("Hello, World!");
 
 Graph graph = new();
-NonlinearFunctionTorch nonlinearFunction = new(99);
+NonlinearFunctionTorch nonlinearFunction = new(99, 9);
 double d = 0;
 
 Stopwatch sw = Stopwatch.StartNew();
 while (true)
 {
-    d = Random.Shared.NextDouble() + 99;
+    d = Random.Shared.NextDouble();
     graph.points.Add(new Point() { x = d, y = TestFunc(d) });
     while (graph.points.Count > 1024)
     {
@@ -23,12 +23,11 @@ while (true)
         }
         double r = TestFunc(d) - nonlinearFunction.Calculate(d);
         Console.WriteLine($"{TestFunc(d)}-{nonlinearFunction.Calculate(d)}={r}");
-        graph.points.Clear();
     }
 }
 sw.Stop();
 
 double TestFunc(double x)
 {
-    return x*99;
+    return Math.Sin(x);
 }

@@ -1,6 +1,7 @@
 ﻿using TorchSharp;
 using TorchSharp.Modules;
 using static TorchSharp.torch;
+using static TorchSharp.torch.nn;
 
 public struct LinearFunction
 {
@@ -120,14 +121,19 @@ public struct NonlinearFunctionTorch
     public static Device device = new Device(DeviceType.CPU);
     Sequential model;
     Adam optimizer;
-    public NonlinearFunctionTorch(int count)
+    public NonlinearFunctionTorch(int count, int neuronCount)
     {
-        model = nn.Sequential(
-            nn.Linear(1, count),
-            nn.ReLU(),
-            nn.Linear(count, 1)
-            //nn.Flatten()
-            );
+        List<Module<Tensor, Tensor>> list = new List<Module<Tensor, Tensor>>();
+        list.Add(nn.Linear(1, count));
+        list.Add(nn.ReLU());
+        for (int i = 0; i < neuronCount; i++)
+        {
+            list.Add(nn.Linear(count, count));
+            list.Add(nn.ReLU());
+        }
+        list.Add(nn.Linear(count, 1));
+        // list.Add(nn.Flatten());
+        model = nn.Sequential(list.ToArray());
         optimizer = optim.Adam(model.parameters(), 0.01f);
     }
     public double Calculate(double x) => (double)model.forward(Graph.ToVaildTensor(x));
