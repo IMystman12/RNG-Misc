@@ -118,28 +118,78 @@ public struct NonlinearFunction
 
 public struct NonlinearFunctionTorch
 {
-    public static Device device = new Device(DeviceType.CPU);
+    public static Device device = CPU;
     Sequential model;
     Adam optimizer;
     public NonlinearFunctionTorch(int count, int neuronCount)
     {
         List<Module<Tensor, Tensor>> list = new List<Module<Tensor, Tensor>>();
-        list.Add(nn.Linear(1, count));
-        list.Add(nn.ReLU());
+        list.Add(Linear(1, count));
+        list.Add(ReLU());
         for (int i = 0; i < neuronCount; i++)
         {
-            list.Add(nn.Linear(count, count));
-            list.Add(nn.ReLU());
+            list.Add(Linear(count, count));
+            list.Add(ReLU());
         }
-        list.Add(nn.Linear(count, 1));
-        // list.Add(nn.Flatten());
-        model = nn.Sequential(list.ToArray());
+        list.Add(Linear(count, 1));
+        // list.Add(Flatten());
+        model = Sequential(list.ToArray());
         optimizer = optim.Adam(model.parameters(), 0.01f);
     }
     public double Calculate(double x) => (double)model.forward(Graph.ToVaildTensor(x));
     public void Train(Graph graph)
     {
-        var loss = nn.functional.mse_loss(model.forward(graph.tensorX), graph.tensorY);
+        var loss = functional.mse_loss(model.forward(graph.tensorX), graph.tensorY);
+        optimizer.zero_grad();
+        loss.backward();
+        optimizer.step();
+    }
+}
+
+public class Calculater : Module<Tensor, Tensor>
+{
+    public delegate Tensor Forward(Tensor input);
+    Forward forwardBase;
+    public Calculater(Forward b) : base("Null") => forwardBase = b;
+    public override Tensor forward(Tensor input) => forwardBase?.Invoke(input);
+}
+
+public struct MultiInputNonlinearFunction
+{
+    Sequential model;
+    Adam optimizer;
+    public MultiInputNonlinearFunction(int inputCount, int count, int neuronCount)
+    {
+        List<Module<Tensor, Tensor>> list = new List<Module<Tensor, Tensor>>();
+        list.Add(Linear(inputCount, count));
+        list.Add(ReLU());
+        for (int i = 0; i < neuronCount; i++)
+        {
+            list.Add(Linear(count, count));
+            list.Add(ReLU());
+        }
+        list.Add(Linear(count, 1));
+        // list.Add(Flatten());
+        model = Sequential(list.ToArray());
+        optimizer = optim.Adam(model.parameters(), 0.01f);
+    }
+    public double Calculate(double[] x)
+    {
+        double[,] input = new double[1, x.Length];
+        for (int i = 0; i < x.Length; i++)
+        {
+            input[0, i] = x[i];
+        }
+        return (double)model.forward(tensor(input, ScalarType.Float32, NonlinearFunctionTorch.device));
+    }
+    public void Train(double[,] x, double[] last)
+    {
+        double[,] tru = new double[last.Length, 1];
+        for (int i = 0; i < last.Length; i++)
+        {
+            tru[i, 0] = last[i];
+        }
+        var loss = functional.mse_loss(model.forward(tensor(x, ScalarType.Float32, NonlinearFunctionTorch.device)), tensor(tru, ScalarType.Float32, NonlinearFunctionTorch.device));
         optimizer.zero_grad();
         loss.backward();
         optimizer.step();
